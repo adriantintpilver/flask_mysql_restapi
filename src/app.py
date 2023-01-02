@@ -131,6 +131,75 @@ def read_jobs_db(job):
     except Exception as ex:
         raise ex 
 
+# This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
+@app.route('/import_historic_CSV/<file>', methods=['GET'])
+def import_historic_CSV(file):
+    try:
+        # open file in read mode
+        with open(file, 'r') as read_obj:
+            # pass the file object to reader() to get the reader object
+            csv_reader = reader(read_obj)
+            # Iterate over each row in the csv using reader object
+            numrows = 0
+            response_agrupated_errors  = ""
+            response_agrupated_errors_count = 0
+            for row in csv_reader:
+                # row variable is a list that represents a row in csv
+                numrows = numrows +1
+                if (validate_id(row[0]) and validate_name(row[1]) and validate_datetime(row[2]) and validate_department(row[3]) and validate_job(row[4])):
+                    hired_employee = read_hired_employees_db(str(row[0]))
+                    if hired_employee != None:
+                        #I save the error to return it in the response
+                        hired_employee['Error'] = "ID: " + str(row[0]) + " already exists, cannot be duplicated."
+                        if (response_agrupated_errors == ""):
+                            response_agrupated_errors=str(hired_employee)
+                        else:
+                            response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
+                        response_agrupated_errors_count = response_agrupated_errors_count + 1 
+                    else:
+                        #search for the department by name and if it doesn't exist I insert it
+                        department = read_department_db(row[3])
+                        if department == None:
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO departments (department) 
+                            VALUES ('{0}')""".format(row[3])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            department = read_department_db(row[3])
+                        #search for the job by name and if it doesn't exist I insert it
+                        job = read_jobs_db(row[4])
+                        if job == None:
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO jobs (job) 
+                            VALUES ('{0}')""".format(row[4])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            job = read_jobs_db(row[4])
+                        cursor = conexion.connection.cursor()
+                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
+                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row[0],
+                                                                row[1], row[2], department['id'], job['id'])
+                        cursor.execute(sql)
+                        conexion.connection.commit() 
+                else:
+                    #I save the error to return it in the response
+                    hired_employee = "{'id': "+str(row[0])+", 'name': '"+str(row[1])+"', 'datetime': '"+str(row[2])+"', 'department': "+str(row[3])+", 'job': "+str(row[4])+", 'Error': 'Invalid parameters.'}"
+                    if (response_agrupated_errors == ""):
+                        response_agrupated_errors=str(hired_employee)
+                    else:
+                        response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
+                    response_agrupated_errors_count = response_agrupated_errors_count + 1 
+        if (response_agrupated_errors_count > 0):
+            response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
+            if (response_agrupated_errors_count == numrows):
+                return jsonify({'import historic CSV message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': response_agrupated_errors, 'success': False})
+            else:
+                return jsonify({'import historic CSV message': str(numrows - response_agrupated_errors_count) + " historical employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': response_agrupated_errors, 'success': True})
+        else:
+            return jsonify({'import historic CSV message': str(numrows) + " historical employees added.", 'success': True})
+    except Exception as ex:
+        return jsonify({'import historic CSV message': "Error", 'success': False})
+
 def page_not_found(error):
     return "<h1>Page not found!, sorry d:-D </h1>", 404
 
