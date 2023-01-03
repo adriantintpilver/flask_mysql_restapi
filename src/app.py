@@ -242,6 +242,38 @@ def import_historic_CSV(file):
     except Exception as ex:
         return jsonify({'import historic CSV message': "Error", 'success': False})
 
+# Function count of hires employees by Q for year
+@app.route('/hires_by_Q_for_year/<year>', methods=['GET'])
+def hires_by_Q_for_year(year):
+    try:
+        # call Stores Procedures "hires_by_Q_for_year" 
+        cursor2 = conexion.connection.cursor()
+        cursor2.callproc('hires_by_Q_for_year', [str(year)])
+        data = cursor2.fetchall()
+        hired_employees_by_Q_for_year = []
+        for fila in data:
+            hired_employee_by_Q_for_year = {'department': fila[0], 'job': fila[1], 'Q1': fila[2], 'Q2': fila[3], 'Q3': fila[4], 'Q4': fila[5]}
+            hired_employees_by_Q_for_year.append(hired_employee_by_Q_for_year)
+        return jsonify({'Count hired_employees by Q for year': hired_employees_by_Q_for_year, 'message': "Count hired_employees by Q for year, report OK.", 'success': True})
+    except Exception as ex:
+        return jsonify({'message': "Error", 'success': False})
+
+# Function count of hires employees by department having more than the mean for year
+@app.route('/hires_by_department_having_more_than_mean/<year>', methods=['GET'])
+def hires_by_department_having_more_than_mean(year):
+    try:
+        # call Stores Procedures "hires_by_Q_for_year" 
+        cursor2 = conexion.connection.cursor()
+        cursor2.callproc('hires_by_department_having_more_than_mean', [str(year)])
+        data = cursor2.fetchall()
+        hired_employees_department_having_more_than_mean = []
+        for fila in data:
+            hired_employee_department_having_more_than_mean = {'id': fila[0], 'department': fila[1], 'hired': fila[2]}
+            hired_employees_department_having_more_than_mean.append(hired_employee_department_having_more_than_mean)
+        return jsonify({'Count hired_employees count of hires employees by department having more than the mean for year': hired_employees_department_having_more_than_mean, 'message': "Count hired_employees count of hires employees by department having more than the mean for year, report OK.", 'success': True})
+    except Exception as ex:
+        return jsonify({'message': "Error", 'success': False})
+
 def page_not_found(error):
     return "<h1>Page not found!, sorry d:-D </h1>", 404
 
