@@ -78,3 +78,24 @@ SET time_zone = "-03:00";
         END
         
         DELIMITER ;
+        --
+        -- Stored procedure to count hired by department having more than mean
+        --
+        DROP procedure IF EXISTS `hires_by_department_having_more_than_mean`;
+        
+        DELIMITER $$
+
+        CREATE DEFINER=`root`@`%` PROCEDURE `hires_by_department_having_more_than_mean`(IN year INT)
+          BEGIN
+
+            select HE.department_id as id , department as department , count(HE.id) as hired
+            FROM globantdatastudy.hired_employees as HE
+            inner join globantdatastudy.departments as D on D.id = HE.department_id 
+              where YEAR(HE.datetime) = year
+            GROUP BY HE.department_id
+              HAVING hired > (select (count(HE2.id) / (select count(distinct(HED.department_id))  FROM globantdatastudy.hired_employees as HED WHERE YEAR(HED.datetime) = year)) as 'mean' FROM globantdatastudy.hired_employees as HE2 WHERE YEAR(HE2.datetime) = year)
+            ORDER BY hired DESC;
+
+          END
+
+          DELIMITER ;
