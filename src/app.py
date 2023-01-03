@@ -74,6 +74,48 @@ def list_jobs():
     except Exception as ex:
         return jsonify({'message': "Error", 'success': False})
 
+
+#Function to register employees one by one
+@app.route('/hired_employee', methods=['POST'])
+def add_hired_employee():
+    if (validate_id(request.json['id']) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department_id(request.json['department_id']) and validate_job_id(request.json['job_id']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
+        try:
+            hired_employee = read_hired_employees_db(request.json['id'])
+            if hired_employee != None:
+                return jsonify({'message': "ID already exists, cannot be duplicated.", 'success': False})
+            else:
+                #search for the department by name and if it doesn't exist I insert it
+                department = read_department_db(request.json['department'])
+                if department == None:
+                    print("deparment not exist, insert that")
+                    cursor = conexion.connection.cursor()
+                    sql = """INSERT INTO departments (department) 
+                    VALUES ('{0}')""".format(request.json['department'])
+                    cursor.execute(sql)
+                    conexion.connection.commit() 
+                    department = read_department_db(request.json['department'])
+                #search for the job by name and if it doesn't exist I insert it
+                job = read_jobs_db(request.json['job'])
+                if job == None:
+                    print("job not exist, insert that")
+                    cursor = conexion.connection.cursor()
+                    sql = """INSERT INTO jobs (job) 
+                    VALUES ('{0}')""".format(request.json['job'])
+                    cursor.execute(sql)
+                    conexion.connection.commit() 
+                    job = read_jobs_db(request.json['job'])
+                cursor = conexion.connection.cursor()
+                sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
+                VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(request.json['id'],
+                                                        request.json['name'], request.json['datetime'], department['id'], job['id'])
+                cursor.execute(sql)
+                conexion.connection.commit() 
+                return jsonify({'message': "hired employee added successfully.", 'success': True})
+        except Exception as ex:
+            return jsonify({'message': "Error", 'success': False})
+    else:
+        return jsonify({'message': "Invalid parameters...", 'success': False})
+
 # Function that returns an employee by id by DB
 def read_hired_employees_db(id):
     try:
