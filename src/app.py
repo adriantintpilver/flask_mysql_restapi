@@ -116,6 +116,43 @@ def add_hired_employee():
     else:
         return jsonify({'message': "Invalid parameters...", 'success': False})
 
+# Function that updates an employee by id
+@app.route('/hired_employees/<id>', methods=['PUT'])
+def udpate_hired_employees(id):
+    if (validate_id(id) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department_id(request.json['department_id']) and validate_job_id(request.json['job_id']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
+        try:
+            hired_employee = read_hired_employees_db(id)
+            if hired_employee != None:
+                cursor = conexion.connection.cursor()
+                sql = """UPDATE hired_employee SET name = '{0}', datetime = {1} , department_id = {2} , job_id = {3} 
+                WHERE id = '{4}'""".format(request.json['name'], request.json['datetime'], request.json['department_id'], request.json['job_id'], id)
+                print(sql)
+                cursor.execute(sql)
+                conexion.connection.commit()  
+                return jsonify({'message': "hired employee updated.", 'success': True})
+            else:
+                return jsonify({'message': "hired employee not found.", 'success': False})
+        except Exception as ex:
+            return jsonify({'message': "Error", 'success': False})
+    else:
+        return jsonify({'message': "Invalid parameters...", 'success': False})
+
+# Function that delete an employee by id
+@app.route('/hired_employees/<id>', methods=['DELETE'])
+def delete_hired_employees(id):
+    try:
+        hired_employee = read_hired_employees_db(id)
+        if hired_employee != None:
+            cursor = conexion.connection.cursor()
+            sql = "DELETE FROM hired_employee WHERE id = '{0}'".format(id)
+            cursor.execute(sql)
+            conexion.connection.commit()  # confirm the deletion.
+            return jsonify({'message': "hired employee deleted.", 'success': True})
+        else:
+            return jsonify({'message': "hired employee not found.", 'success': False})
+    except Exception as ex:
+        return jsonify({'message': "Error", 'success': False})
+
 # Function that returns an employee by id by DB
 def read_hired_employees_db(id):
     try:
