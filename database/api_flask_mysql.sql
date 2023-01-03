@@ -55,3 +55,26 @@ SET time_zone = "-03:00";
         END$$
 
         DELIMITER ;
+        --
+        -- Stored procedure to count by Q hires employees by department and job 
+        --
+         DROP procedure IF EXISTS `hires_by_Q_for_year`;
+        
+        DELIMITER $$
+        
+        CREATE PROCEDURE `hires_by_Q_for_year`(IN year INT)
+        BEGIN
+          SELECT  D.department, J.job,
+              COUNT(CASE WHEN QUARTER(HE.datetime) = 1 THEN 0 ELSE NULL END) 'Q1',
+              COUNT(CASE WHEN QUARTER(HE.datetime) = 2 THEN 0 ELSE NULL END) 'Q2',
+              COUNT(CASE WHEN QUARTER(HE.datetime) = 3 THEN 0 ELSE NULL END) 'Q3',
+              COUNT(CASE WHEN QUARTER(HE.datetime) = 4 THEN 0 ELSE NULL END) 'Q4'
+          FROM globantdatastudy.hired_employees as HE
+          inner join globantdatastudy.departments as D on D.id = HE.department_id 
+          inner join globantdatastudy.jobs as J on J.id = HE.job_id 
+          where YEAR(HE.datetime) = YEAR
+          GROUP BY HE.department_id, HE.job_id
+          ORDER BY D.department, J.job;
+        END
+        
+        DELIMITER ;
