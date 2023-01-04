@@ -118,7 +118,7 @@ def add_hired_employee():
         return jsonify({'message': "Invalid parameters...", 'success': False})
 
 
-#Function to register employees by batch up to 1000
+#Function to register employees up to 1000
 @app.route('/hired_employees', methods=['POST'])
 def add_hired_employees():
     response_agrupated_errors =""
@@ -281,6 +281,45 @@ def read_jobs_db(job):
             return None
     except Exception as ex:
         raise ex 
+
+
+# Function that generated backup from all DB data in avro file with time stamp in the name
+@app.route('/avro_backup', methods=['GET'])
+def avro_backup():
+    try:
+        cursor = conexion.connection.cursor()
+        sql = "SELECT HE.id, HE.name, HE.datetime, HE.department_id, HE.job_id, D.department, J.job  FROM globantdatastudy.hired_employees as HE inner join globantdatastudy.departments as D on D.id = HE.department_id inner join globantdatastudy.jobs as J on J.id = HE.job_id ORDER BY id ASC"
+        cursor.execute(sql)
+        data = cursor.fetchall()
+        hired_employees = []
+        for fila in data:
+            hired_employee = {u'id': fila[0], u'name': fila[1], u'datetime': fila[2], u'department_id': fila[3],u'job_id': fila[4], u'department': fila[5], u'job': fila[6]}
+            hired_employees.append(hired_employee)
+        schema = {
+            'doc': 'hired_employees.',
+            'name': 'hired employees Backup',
+            'namespace': 'case study',
+            'type': 'record',
+            'fields': [
+                {'name': 'id', 'type': 'int'},
+                {'name': 'name', 'type': 'string'},
+                {'name': 'datetime', 'type': 'string'},
+                {'name': 'department_id', 'type': 'int'},
+                {'name': 'department', 'type': 'string'},
+                {'name': 'job_id', 'type': 'int'},
+                {'name': 'job', 'type': 'string'},
+            ],
+        }
+        parsed_schema = parse_schema(schema)
+        filebackupname = str('backups/hired_employees_backup-'+ now.strftime("%m-%d-%Y-%H-%M-%S")+'.avro')
+        with open(str(filebackupname), 'wb') as out:
+            writer(out, parsed_schema, hired_employees)
+        LogFile("Avro backup.  success: True. file save --> " + str(filebackupname))
+        return jsonify({'Avro backup': "save", 'file name': filebackupname, 'success': True})
+    except Exception as ex:
+        LogFile("Avro backup.  success: False")
+        return jsonify({'message': "Error", 'success': False})
+
 
 # This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
 @app.route('/import_historic_CSV/<file>', methods=['GET'])
