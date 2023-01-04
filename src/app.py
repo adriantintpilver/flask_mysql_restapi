@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_mysqldb import MySQL
 from flask_cors import CORS, cross_origin
 import ast
+import requests
 from datetime import datetime
 from fastavro import writer, parse_schema
 from csv import reader
@@ -115,6 +116,77 @@ def add_hired_employee():
             return jsonify({'message': "Error", 'success': False})
     else:
         return jsonify({'message': "Invalid parameters...", 'success': False})
+
+
+#Function to register employees by batch up to 1000
+@app.route('/hired_employees', methods=['POST'])
+def add_hired_employees():
+    response_agrupated_errors =""
+    response_agrupated_errors_count =0
+    if (len(request.json) <= 1000):
+        for field_dict in request.json:
+            if (validate_id(field_dict['id']) and validate_name(field_dict['name']) and validate_datetime(field_dict['datetime']) and validate_department(field_dict['department']) and validate_job(field_dict['job'])):
+                try:
+                    hired_employee = read_hired_employees_db(field_dict['id'])
+                    if hired_employee != None:
+                        #I save the error to return it in the response
+                        field_dict['Error'] = "ID: " + str(field_dict['id']) + " already exists, cannot be duplicated."
+                        if (response_agrupated_errors == ""):
+                            response_agrupated_errors=str(field_dict)
+                        else:
+                            response_agrupated_errors=str(response_agrupated_errors) +","+ str(field_dict)
+                        response_agrupated_errors_count = response_agrupated_errors_count + 1 
+                    else:
+                        #search for the department by name and if it doesn't exist I insert it
+                        department = read_department_db(field_dict['department'])
+                        if department == None:
+                            print("deparment not exist, insert that")
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO departments (department) 
+                            VALUES ('{0}')""".format(field_dict['department'])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            department = read_department_db(field_dict['department'])
+                        #search for the job by name and if it doesn't exist I insert it
+                        job = read_jobs_db(field_dict['job'])
+                        if job == None:
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO jobs (job) 
+                            VALUES ('{0}')""".format(field_dict['job'])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            job = read_jobs_db(field_dict['job'])
+                        cursor = conexion.connection.cursor()
+                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
+                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(field_dict['id'],
+                                                                field_dict['name'], field_dict['datetime'], department['id'], job['id'])
+                        cursor.execute(sql)
+                        conexion.connection.commit() 
+                except Exception as ex:
+                    return jsonify({'message': "Error", 'success': False})
+            else:
+                #I save the error to return it in the response
+                field_dict['Error'] = "Invalid parameters."
+                if (response_agrupated_errors == ""):
+                    response_agrupated_errors=str(field_dict)
+                else:
+                    response_agrupated_errors=str(response_agrupated_errors) +","+ str(field_dict)
+                response_agrupated_errors_count = response_agrupated_errors_count + 1 
+    else:
+        LogFile("hired employees added. Error you cannot send more than a thousand for each request.  success: False --> " + str(request.json))
+        return jsonify({'message': "you cannot send more than a thousand for each request", 'success': False})
+    if (response_agrupated_errors_count > 0):
+        response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
+        if (response_agrupated_errors_count == len(request.json)):
+            LogFile("hired employees added. invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.  success: False. Error cases: " + str(response_agrupated_errors))
+            return jsonify({'message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': str(response_agrupated_errors), 'success': False})
+        else:
+            LogFile("hired employees added. "+  str(len(request.json) - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected. Error cases: : " + str(response_agrupated_errors) + ". success: True")
+            return jsonify({'message': str(len(request.json) - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': str(response_agrupated_errors), 'success': True})
+    else:
+        LogFile("hired employees added. "+  str(len(request.json)) + " new employees added. success: True ->" + str(request.json))
+        return jsonify({'message': str(len(request.json)) + " new employees added.", 'success': True})
+
 
 # Function that updates an employee by id
 @app.route('/hired_employees/<id>', methods=['PUT'])
@@ -310,6 +382,17 @@ def hires_by_department_having_more_than_mean(year):
         return jsonify({'Count hired_employees count of hires employees by department having more than the mean for year': hired_employees_department_having_more_than_mean, 'message': "Count hired_employees count of hires employees by department having more than the mean for year, report OK.", 'success': True})
     except Exception as ex:
         return jsonify({'message': "Error", 'success': False})
+
+# Function that log one txt file by day
+def LogFile(text):
+    try:
+        f = open("logs/log_" + now.strftime("%m-%d-%Y")+".txt", "a")
+        f.write("\n")
+        f.write(now.strftime("%m-%d-%Y-%H-%M-%S")+ " : " + str(text))
+        f.close()
+        return "log OK"
+    except Exception as ex:
+        raise ex
 
 def page_not_found(error):
     return "<h1>Page not found!, sorry d:-D </h1>", 404
