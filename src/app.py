@@ -21,9 +21,16 @@ now = datetime.now()
 app = Flask(__name__)
 
 # CORS(app)
+CORS(app, resources={r"/hired_employee/*": {"origins": "http://localhost:5000"}})
 CORS(app, resources={r"/hired_employees/*": {"origins": "http://localhost:5000"}})
 CORS(app, resources={r"/departments/*": {"origins": "http://localhost:5000"}})
 CORS(app, resources={r"/jobs/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/avro_backup/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/avro_backup_list/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/avro_backup_restore/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/import_historic_CSV/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/hires_by_Q_for_year/*": {"origins": "http://localhost:5000"}})
+CORS(app, resources={r"/hires_by_department_having_more_than_mean/*": {"origins": "http://localhost:5000"}})
 
 conexion = MySQL(app)
 
@@ -39,8 +46,10 @@ def list_hired_employees():
         for fila in data:
             hired_employee = {'id': fila[0], 'name': fila[1], 'datetime': fila[2], 'department_id': fila[3], 'job_id': fila[4]}
             hired_employees.append(hired_employee)
+        LogFile("hired_employees list. success: True ->" + str(hired_employees))    
         return jsonify({'hired_employees': hired_employees, 'message': "hired_employees list.", 'success': True})
     except Exception as ex:
+        LogFile("hired_employees list.Error success: False") 
         return jsonify({'message': "Error", 'success': False})
 
 # Function that returns all departments
@@ -55,8 +64,10 @@ def list_departments():
         for fila in data:
             department = {'id': fila[0], 'department': fila[1]}
             departments.append(department)
+        LogFile("departments list. success: True ->" + str(departments))  
         return jsonify({'departments': departments, 'message': "departments list.", 'success': True})
     except Exception as ex:
+        LogFile("departments list. Error success: False") 
         return jsonify({'message': "Error", 'success': False})
 
 # Function that returns all jobs
@@ -71,10 +82,11 @@ def list_jobs():
         for fila in data:
             job = {'id': fila[0], 'department': fila[1]}
             jobs.append(job)
+        LogFile("jobs list. success: True ->" + str(jobs))
         return jsonify({'jobs': jobs, 'message': "jobs list.", 'success': True})
     except Exception as ex:
+        LogFile("jobs list. Error success: False")
         return jsonify({'message': "Error", 'success': False})
-
 
 #Function to register employees one by one
 @app.route('/hired_employee', methods=['POST'])
@@ -83,6 +95,7 @@ def add_hired_employee():
         try:
             hired_employee = read_hired_employees_db(request.json['id'])
             if hired_employee != None:
+                LogFile("hired employee added . Error ID already exists, cannot be duplicated. success: False ->" + str(request.json))
                 return jsonify({'message': "ID already exists, cannot be duplicated.", 'success': False})
             else:
                 #search for the department by name and if it doesn't exist I insert it
@@ -111,12 +124,14 @@ def add_hired_employee():
                                                         request.json['name'], request.json['datetime'], department['id'], job['id'])
                 cursor.execute(sql)
                 conexion.connection.commit() 
+                LogFile("hired employee added successfully. success: True ->" + str(request.json))
                 return jsonify({'message': "hired employee added successfully.", 'success': True})
         except Exception as ex:
+            LogFile("hired employee added . Error success: False ->" + str(request.json))
             return jsonify({'message': "Error", 'success': False})
     else:
+        LogFile("hired employee added . Error Invalid parameters. success: False ->" + str(request.json))
         return jsonify({'message': "Invalid parameters...", 'success': False})
-
 
 #Function to register employees up to 1000
 @app.route('/hired_employees', methods=['POST'])
@@ -221,11 +236,13 @@ def delete_hired_employees(id):
             conexion.connection.commit()  # confirm the deletion.
             return jsonify({'message': "hired employee deleted.", 'success': True})
         else:
+            LogFile("jobs list. success: True id deleted ->" + str(id))
             return jsonify({'message': "hired employee not found.", 'success': False})
     except Exception as ex:
+        LogFile("delete_hired_employees. Error success: False")
         return jsonify({'message': "Error", 'success': False})
 
-# Function that returns an employee by id by DB
+# Function that returns an employee by id from DB
 def read_hired_employees_db(id):
     try:
         cursor = conexion.connection.cursor()
@@ -280,8 +297,7 @@ def read_jobs_db(job):
         else:
             return None
     except Exception as ex:
-        raise ex 
-
+        raise ex   
 
 # Function that generated backup from all DB data in avro file with time stamp in the name
 @app.route('/avro_backup', methods=['GET'])
@@ -320,6 +336,99 @@ def avro_backup():
         LogFile("Avro backup.  success: False")
         return jsonify({'message': "Error", 'success': False})
 
+# folder backups path
+dir_path = "./backups"
+# list to store backups avro files
+listbackupfiles = []
+# Function that return a list of backups save in /backups folder (the file name is needeed for restore backup call)
+@app.route('/avro_backup_list', methods=['GET'])
+def avro_backup_list():
+    try:
+        # Iterate directory
+        for path in os.listdir(dir_path):
+            # check if current path is a file
+            if os.path.isfile(os.path.join(dir_path, path)):
+                listbackupfiles.append(path)
+        LogFile("Avro backup files list.  success: True --> " + str(listbackupfiles))
+        return jsonify({'Avro backup files list': listbackupfiles, 'success': True})
+    except Exception as ex:
+        LogFile("Avro backup files list.  success: False")
+        return jsonify({'message': "Error", 'success': False})
+
+# Function that restore backup in to data base from avro backup file (WARNING, this action clean all data in DB and leave only data in backup avro file.)
+# This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
+@app.route('/avro_backup_restore/<file>', methods=['GET'])
+def avro_backup_restore(file):
+    try:
+        # put backup avro file into a pandas dataframe
+        backupdata = pdx.from_avro('./backups/'+file)
+        response_agrupated_errors =""
+        response_agrupated_errors_count = 0
+        numrows = 0
+        # call Stores Procedures "truncate_all" to truncate all tables (this action is very sensitive and in production this action would require much more security)
+        cursor2 = conexion.connection.cursor()
+        cursor2.callproc('truncate_all', [])
+        conexion.connection.commit() 
+        # iterate through each row in the dataframe
+        for index, row in backupdata.iterrows():
+            numrows = numrows + 1
+            if (validate_id(row['id']) and validate_name(row['name']) and validate_datetime(row['datetime']) and validate_department(row['department']) and validate_job(row['job'])):
+                hired_employee = read_hired_employees_db(str(row['id']))
+                if hired_employee != None:
+                    #I save the error to return it in the response
+                    hired_employee['Error'] = "ID: " + str(row['id']) + " already exists, cannot be duplicated."
+                    if (response_agrupated_errors == ""):
+                        response_agrupated_errors=str(hired_employee)
+                    else:
+                        response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
+                    response_agrupated_errors_count = response_agrupated_errors_count + 1 
+                else:
+                    #search for the department by name and if it doesn't exist I insert it
+                    department = read_department_db(row['department'])
+                    if department == None:
+                        cursor = conexion.connection.cursor()
+                        sql = """INSERT INTO departments (department) 
+                        VALUES ('{0}')""".format(row['department'])
+                        cursor.execute(sql)
+                        conexion.connection.commit() 
+                        department = read_department_db(row['department'])
+                    #search for the job by name and if it doesn't exist I insert it
+                    job = read_jobs_db(row['job'])
+                    if job == None:
+                        cursor = conexion.connection.cursor()
+                        sql = """INSERT INTO jobs (job) 
+                        VALUES ('{0}')""".format(row['job'])
+                        cursor.execute(sql)
+                        conexion.connection.commit() 
+                        job = read_jobs_db(row['job'])
+                    cursor = conexion.connection.cursor()
+                    sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
+                    VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row['id'],
+                                                            row['name'], row['datetime'], department['id'], job['id'])
+                    cursor.execute(sql)
+                    conexion.connection.commit() 
+            else:
+                #I save the error to return it in the response
+                hired_employee = "{'id': "+str(row['id'])+", 'name': '"+str(row['name'])+"', 'datetime': '"+str(row['datetime'])+"', 'department': "+str(row['department'])+", 'job': "+str(row['job'])+", 'Error': 'Invalid parameters.'}"
+                if (response_agrupated_errors == ""):
+                    response_agrupated_errors=str(hired_employee)
+                else:
+                    response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
+                response_agrupated_errors_count = response_agrupated_errors_count + 1 
+        if (response_agrupated_errors_count > 0):
+            response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
+            if (response_agrupated_errors_count == numrows):
+                LogFile("Avro backup restored. invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.  success: False. Error cases: " + str(response_agrupated_errors))
+                return jsonify({'Avro backup restored message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': response_agrupated_errors, 'success': False})
+            else:
+                LogFile("Avro backup restored. "+  str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected. Error cases: : " + str(response_agrupated_errors) + ". success: True File name--> " + str(file))
+                return jsonify({'Avro backup restored message': str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': response_agrupated_errors, 'success': True})
+        else:
+            LogFile("Avro backup restored. "+  str(numrows) + " new employees added. success: True. File name--> " + str(file))
+            return jsonify({'Avro backup restored message': str(numrows) + " new employees added.", 'success': True})
+    except Exception as ex:
+        LogFile("Avro backup restored. Error success: False. File name--> " + str(file))
+        return jsonify({'Avro backup restored message': "Error", 'success': False})
 
 # This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
 @app.route('/import_historic_CSV/<file>', methods=['GET'])
@@ -382,12 +491,16 @@ def import_historic_CSV(file):
         if (response_agrupated_errors_count > 0):
             response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
             if (response_agrupated_errors_count == numrows):
+                LogFile("import historic CSV . invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.  success: False. Error cases: " + str(response_agrupated_errors))
                 return jsonify({'import historic CSV message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': response_agrupated_errors, 'success': False})
             else:
+                LogFile("import historic CSV. "+  str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected. Error cases: : " + str(response_agrupated_errors) + ". success: True")
                 return jsonify({'import historic CSV message': str(numrows - response_agrupated_errors_count) + " historical employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': response_agrupated_errors, 'success': True})
         else:
+            LogFile("import historic CSV. "+  str(numrows) + " new employees added. success: True")
             return jsonify({'import historic CSV message': str(numrows) + " historical employees added.", 'success': True})
     except Exception as ex:
+        LogFile("import historic CSV. Error success: False. File name--> " + str(file))
         return jsonify({'import historic CSV message': "Error", 'success': False})
 
 # Function count of hires employees by Q for year
@@ -402,8 +515,10 @@ def hires_by_Q_for_year(year):
         for fila in data:
             hired_employee_by_Q_for_year = {'department': fila[0], 'job': fila[1], 'Q1': fila[2], 'Q2': fila[3], 'Q3': fila[4], 'Q4': fila[5]}
             hired_employees_by_Q_for_year.append(hired_employee_by_Q_for_year)
+        LogFile("Count hired_employees by Q for year: " + str(hired_employees_by_Q_for_year) + ". success: True  File year--> " + str(year))
         return jsonify({'Count hired_employees by Q for year': hired_employees_by_Q_for_year, 'message': "Count hired_employees by Q for year, report OK.", 'success': True})
     except Exception as ex:
+        LogFile("hires_by_Q_for_year. Error success: False. File year--> " + str(year))
         return jsonify({'message': "Error", 'success': False})
 
 # Function count of hires employees by department having more than the mean for year
@@ -418,8 +533,10 @@ def hires_by_department_having_more_than_mean(year):
         for fila in data:
             hired_employee_department_having_more_than_mean = {'id': fila[0], 'department': fila[1], 'hired': fila[2]}
             hired_employees_department_having_more_than_mean.append(hired_employee_department_having_more_than_mean)
+        LogFile("Count hired_employees count of hires employees by department having more than the mean for year: " + str(hired_employees_department_having_more_than_mean) + ". success: True  File year--> " + str(year))
         return jsonify({'Count hired_employees count of hires employees by department having more than the mean for year': hired_employees_department_having_more_than_mean, 'message': "Count hired_employees count of hires employees by department having more than the mean for year, report OK.", 'success': True})
     except Exception as ex:
+        LogFile("Count hired_employees count of hires employees by department having more than the mean for year. Error success: False. File year--> " + str(year))
         return jsonify({'message': "Error", 'success': False})
 
 # Function that log one txt file by day
@@ -434,6 +551,7 @@ def LogFile(text):
         raise ex
 
 def page_not_found(error):
+    LogFile("Page not found!, sorry. Error success: False")
     return "<h1>Page not found!, sorry d:-D </h1>", 404
 
 
