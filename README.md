@@ -355,8 +355,10 @@ example response return:
   "success": true
 }
 ```
-# Example of report generated in PowerBI
+### Examples of report generated of this service
 <img src="/report_samples/hires_by_Q_for_year-2021.jpeg">
+
+<img src="/report_samples/hires_by_Q_for_year-2021v2.jpeg">
 
 ## STATS Service: hires_by_department_having_more_than_mean Method: GET
 This service lists the number of employees hired by each department that has hired more employees than the average of all the departments for the year consulted, ordered by number of employees in descending order.
@@ -404,3 +406,7 @@ example response return:
   "success": true
 }
 ```
+### Examples of report generated of this service
+<img src="/report_samples/hires_by_department_having_more_than_mean-2021.jpeg">
+
+<img src="/report_samples/hires_by_department_having_more_than_mean-2021v2.jpeg">
