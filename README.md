@@ -13,7 +13,7 @@ Publish various services through a Python Flask API, using a MySql database.
 docker run --name mysql-db -e MYSQL_ROOT_PASSWORD=StudiodeDataenGlobant -p 3307:3306 -d mysql:latest
 ```
 
-    For the python part of the application from the root directory of the project run the following scripts
+#### For the python part of the application from the root directory of the project run the following scripts
 
 ```bash
 $ pip install -r requirements.txt
