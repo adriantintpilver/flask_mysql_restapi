@@ -8,6 +8,11 @@ Publish various services through a Python Flask API, using a MySql database.
 
 # without using docker
     You will need python installed and a running MySql database on port 3306, with the credentials from the ./config.py file
+    or can create a docker only for this MySql db whit this line:
+        ```bash
+        docker run --name mysql-db -e MYSQL_ROOT_PASSWORD=StudiodeDataenGlobant -p 3307:3306 -d mysql:latest
+        ```
+    docker run --name mysql-db -e MYSQL_ROOT_PASSWORD=StudiodeDataenGlobant -p 3307:3306 -d mysql:latest
         from the root directory of the project run the following scripts
         ```bash
         $ pip install -r requirements.txt
