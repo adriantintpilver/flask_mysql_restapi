@@ -91,7 +91,7 @@ def list_jobs():
 #Function to register employees one by one
 @app.route('/hired_employee', methods=['POST'])
 def add_hired_employee():
-    if (validate_id(request.json['id']) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department_id(request.json['department_id']) and validate_job_id(request.json['job_id']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
+    if (validate_id(request.json['id']) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
         try:
             hired_employee = read_hired_employees_db(request.json['id'])
             if hired_employee != None:
@@ -105,13 +105,11 @@ def add_hired_employee():
                     cursor = conexion.connection.cursor()
                     sql = """INSERT INTO departments (department) 
                     VALUES ('{0}')""".format(request.json['department'])
-                    cursor.execute(sql)
                     conexion.connection.commit() 
                     department = read_department_db(request.json['department'])
                 #search for the job by name and if it doesn't exist I insert it
                 job = read_jobs_db(request.json['job'])
                 if job == None:
-                    print("job not exist, insert that")
                     cursor = conexion.connection.cursor()
                     sql = """INSERT INTO jobs (job) 
                     VALUES ('{0}')""".format(request.json['job'])
@@ -155,7 +153,6 @@ def add_hired_employees():
                         #search for the department by name and if it doesn't exist I insert it
                         department = read_department_db(field_dict['department'])
                         if department == None:
-                            print("deparment not exist, insert that")
                             cursor = conexion.connection.cursor()
                             sql = """INSERT INTO departments (department) 
                             VALUES ('{0}')""".format(field_dict['department'])
@@ -204,43 +201,71 @@ def add_hired_employees():
 
 
 # Function that updates an employee by id
-@app.route('/hired_employees/<id>', methods=['PUT'])
-def udpate_hired_employees(id):
-    if (validate_id(id) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department_id(request.json['department_id']) and validate_job_id(request.json['job_id']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
+@app.route('/hired_employees', methods=['PUT'])
+def udpate_hired_employees():
+    if (validate_id(request.json['id']) and validate_name(request.json['name']) and validate_datetime(request.json['datetime']) and validate_department(request.json['department']) and validate_job(request.json['job'])):
         try:
-            hired_employee = read_hired_employees_db(id)
+            hired_employee = read_hired_employees_db(request.json['id'])
             if hired_employee != None:
+                #search for the department by name and if it doesn't exist I insert it
+                department = read_department_db(request.json['department'])
+                if department == None:
+                    cursor = conexion.connection.cursor()
+                    sql = """INSERT INTO departments (department) 
+                    VALUES ('{0}')""".format(request.json['department'])
+                    cursor.execute(sql)
+                    conexion.connection.commit() 
+                    department = read_department_db(request.json['department'])
+                #search for the job by name and if it doesn't exist I insert it
+                job = read_jobs_db(request.json['job'])
+                if job == None:
+                    cursor = conexion.connection.cursor()
+                    sql = """INSERT INTO jobs (job) 
+                    VALUES ('{0}')""".format(request.json['job'])
+                    cursor.execute(sql)
+                    conexion.connection.commit() 
+                    job = read_jobs_db(request.json['job'])
                 cursor = conexion.connection.cursor()
-                sql = """UPDATE hired_employee SET name = '{0}', datetime = {1} , department_id = {2} , job_id = {3} 
-                WHERE id = '{4}'""".format(request.json['name'], request.json['datetime'], request.json['department_id'], request.json['job_id'], id)
-                print(sql)
+                sql = """UPDATE hired_employees SET name = '{0}', datetime = '{1}' , department_id = {2} , job_id = {3} 
+                WHERE id = {4}""".format(request.json['name'], request.json['datetime'], department['id'], job['id'], request.json['id'])
                 cursor.execute(sql)
-                conexion.connection.commit()  
+                conexion.connection.commit() 
+                LogFile("hired employee updated successfully. success: True ->" + str(request.json))
                 return jsonify({'message': "hired employee updated.", 'success': True})
             else:
+                LogFile("hired employee not found. success: False ->" + str(request.json))
                 return jsonify({'message': "hired employee not found.", 'success': False})
         except Exception as ex:
+            LogFile("hired employee updated . Error success: False ->" + str(request.json))
             return jsonify({'message': "Error", 'success': False})
     else:
-        return jsonify({'message': "Invalid parameters...", 'success': False})
+        LogFile("hired employee updated . Error Invalid parameters. success: False ->" + str(request.json))
+        return jsonify({'message': "Invalid parameters...", 'success': False}) 
+
+
 
 # Function that delete an employee by id
-@app.route('/hired_employees/<id>', methods=['DELETE'])
-def delete_hired_employees(id):
-    try:
-        hired_employee = read_hired_employees_db(id)
-        if hired_employee != None:
-            cursor = conexion.connection.cursor()
-            sql = "DELETE FROM hired_employee WHERE id = '{0}'".format(id)
-            cursor.execute(sql)
-            conexion.connection.commit()  # confirm the deletion.
-            return jsonify({'message': "hired employee deleted.", 'success': True})
-        else:
-            LogFile("jobs list. success: True id deleted ->" + str(id))
-            return jsonify({'message': "hired employee not found.", 'success': False})
-    except Exception as ex:
-        LogFile("delete_hired_employees. Error success: False")
-        return jsonify({'message': "Error", 'success': False})
+@app.route('/hired_employees', methods=['DELETE'])
+def delete_hired_employees():
+    if (validate_id(request.json['id'])):
+        try:
+            hired_employee = read_hired_employees_db(request.json['id'])
+            if hired_employee != None:
+                cursor = conexion.connection.cursor()
+                sql = "DELETE FROM hired_employees WHERE id = {0}".format(request.json['id'])
+                cursor.execute(sql)
+                conexion.connection.commit()  # confirm the deletion.
+                LogFile("deletehired employee. success: True, hired employee deleted ->" + str(request.json))
+                return jsonify({'message': "hired employee deleted.", 'success': True})
+            else:
+                LogFile("delete hired employee. success: False, hired employee not found ->" + str(request.json))
+                return jsonify({'message': "hired employee not found.", 'success': False})
+        except Exception as ex:
+            LogFile("delete hired employee. Error success: False")
+            return jsonify({'message': "Error", 'success': False})
+    else:
+        LogFile("delete hired employee . Error Invalid parameters. success: False ->" + str(request.json))
+        return jsonify({'message': "Invalid parameters...", 'success': False}) 
 
 # Function that returns an employee by id from DB
 def read_hired_employees_db(id):
@@ -300,7 +325,7 @@ def read_jobs_db(job):
         raise ex   
 
 # Function that generated backup from all DB data in avro file with time stamp in the name
-@app.route('/avro_backup', methods=['GET'])
+@app.route('/avro_backup', methods=['POST'])
 def avro_backup():
     try:
         cursor = conexion.connection.cursor()
@@ -327,6 +352,7 @@ def avro_backup():
             ],
         }
         parsed_schema = parse_schema(schema)
+        now = datetime.now()
         filebackupname = str('backups/hired_employees_backup-'+ now.strftime("%m-%d-%Y-%H-%M-%S")+'.avro')
         with open(str(filebackupname), 'wb') as out:
             writer(out, parsed_schema, hired_employees)
@@ -338,12 +364,12 @@ def avro_backup():
 
 # folder backups path
 dir_path = "./backups"
-# list to store backups avro files
-listbackupfiles = []
 # Function that return a list of backups save in /backups folder (the file name is needeed for restore backup call)
-@app.route('/avro_backup_list', methods=['GET'])
+@app.route('/avro_backup_list', methods=['POST'])
 def avro_backup_list():
     try:
+        # list to store backups avro files
+        listbackupfiles = []
         # Iterate directory
         for path in os.listdir(dir_path):
             # check if current path is a file
@@ -357,78 +383,83 @@ def avro_backup_list():
 
 # Function that restore backup in to data base from avro backup file (WARNING, this action clean all data in DB and leave only data in backup avro file.)
 # This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
-@app.route('/avro_backup_restore/<file>', methods=['GET'])
-def avro_backup_restore(file):
-    try:
-        # put backup avro file into a pandas dataframe
-        backupdata = pdx.from_avro('./backups/'+file)
-        response_agrupated_errors =""
-        response_agrupated_errors_count = 0
-        numrows = 0
-        # call Stores Procedures "truncate_all" to truncate all tables (this action is very sensitive and in production this action would require much more security)
-        cursor2 = conexion.connection.cursor()
-        cursor2.callproc('truncate_all', [])
-        conexion.connection.commit() 
-        # iterate through each row in the dataframe
-        for index, row in backupdata.iterrows():
-            numrows = numrows + 1
-            if (validate_id(row['id']) and validate_name(row['name']) and validate_datetime(row['datetime']) and validate_department(row['department']) and validate_job(row['job'])):
-                hired_employee = read_hired_employees_db(str(row['id']))
-                if hired_employee != None:
+@app.route('/avro_backup_restore', methods=['POST'])
+def avro_backup_restore():
+    print(request.json['file'])
+    if (validate_file(request.json['file'])):
+        try:
+            # put backup avro file into a pandas dataframe
+            backupdata = pdx.from_avro('./backups/'+request.json['file'])
+            response_agrupated_errors =""
+            response_agrupated_errors_count = 0
+            numrows = 0
+            # call Stores Procedures "truncate_all" to truncate all tables (this action is very sensitive and in production this action would require much more security)
+            cursor2 = conexion.connection.cursor()
+            cursor2.callproc('truncate_all', [])
+            conexion.connection.commit() 
+            # iterate through each row in the dataframe
+            for index, row in backupdata.iterrows():
+                numrows = numrows + 1
+                if (validate_id(row['id']) and validate_name(row['name']) and validate_datetime(row['datetime']) and validate_department(row['department']) and validate_job(row['job'])):
+                    hired_employee = read_hired_employees_db(str(row['id']))
+                    if hired_employee != None:
+                        #I save the error to return it in the response
+                        hired_employee['Error'] = "ID: " + str(row['id']) + " already exists, cannot be duplicated."
+                        if (response_agrupated_errors == ""):
+                            response_agrupated_errors=str(hired_employee)
+                        else:
+                            response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
+                        response_agrupated_errors_count = response_agrupated_errors_count + 1 
+                    else:
+                        #search for the department by name and if it doesn't exist I insert it
+                        department = read_department_db(row['department'])
+                        if department == None:
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO departments (department) 
+                            VALUES ('{0}')""".format(row['department'])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            department = read_department_db(row['department'])
+                        #search for the job by name and if it doesn't exist I insert it
+                        job = read_jobs_db(row['job'])
+                        if job == None:
+                            cursor = conexion.connection.cursor()
+                            sql = """INSERT INTO jobs (job) 
+                            VALUES ('{0}')""".format(row['job'])
+                            cursor.execute(sql)
+                            conexion.connection.commit() 
+                            job = read_jobs_db(row['job'])
+                        cursor = conexion.connection.cursor()
+                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
+                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row['id'],
+                                                                row['name'], row['datetime'], department['id'], job['id'])
+                        cursor.execute(sql)
+                        conexion.connection.commit() 
+                else:
                     #I save the error to return it in the response
-                    hired_employee['Error'] = "ID: " + str(row['id']) + " already exists, cannot be duplicated."
+                    hired_employee = "{'id': "+str(row['id'])+", 'name': '"+str(row['name'])+"', 'datetime': '"+str(row['datetime'])+"', 'department': "+str(row['department'])+", 'job': "+str(row['job'])+", 'Error': 'Invalid parameters.'}"
                     if (response_agrupated_errors == ""):
                         response_agrupated_errors=str(hired_employee)
                     else:
                         response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
                     response_agrupated_errors_count = response_agrupated_errors_count + 1 
+            if (response_agrupated_errors_count > 0):
+                response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
+                if (response_agrupated_errors_count == numrows):
+                    LogFile("Avro backup restored. invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.  success: False. Error cases: " + str(response_agrupated_errors))
+                    return jsonify({'Avro backup restored message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': response_agrupated_errors, 'success': False})
                 else:
-                    #search for the department by name and if it doesn't exist I insert it
-                    department = read_department_db(row['department'])
-                    if department == None:
-                        cursor = conexion.connection.cursor()
-                        sql = """INSERT INTO departments (department) 
-                        VALUES ('{0}')""".format(row['department'])
-                        cursor.execute(sql)
-                        conexion.connection.commit() 
-                        department = read_department_db(row['department'])
-                    #search for the job by name and if it doesn't exist I insert it
-                    job = read_jobs_db(row['job'])
-                    if job == None:
-                        cursor = conexion.connection.cursor()
-                        sql = """INSERT INTO jobs (job) 
-                        VALUES ('{0}')""".format(row['job'])
-                        cursor.execute(sql)
-                        conexion.connection.commit() 
-                        job = read_jobs_db(row['job'])
-                    cursor = conexion.connection.cursor()
-                    sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
-                    VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row['id'],
-                                                            row['name'], row['datetime'], department['id'], job['id'])
-                    cursor.execute(sql)
-                    conexion.connection.commit() 
+                    LogFile("Avro backup restored. "+  str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected. Error cases: : " + str(response_agrupated_errors) + ". success: True File name--> " + str(request.json['file']))
+                    return jsonify({'Avro backup restored message': str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': response_agrupated_errors, 'success': True})
             else:
-                #I save the error to return it in the response
-                hired_employee = "{'id': "+str(row['id'])+", 'name': '"+str(row['name'])+"', 'datetime': '"+str(row['datetime'])+"', 'department': "+str(row['department'])+", 'job': "+str(row['job'])+", 'Error': 'Invalid parameters.'}"
-                if (response_agrupated_errors == ""):
-                    response_agrupated_errors=str(hired_employee)
-                else:
-                    response_agrupated_errors=str(response_agrupated_errors) +","+ str(hired_employee)
-                response_agrupated_errors_count = response_agrupated_errors_count + 1 
-        if (response_agrupated_errors_count > 0):
-            response_agrupated_errors = ast.literal_eval(response_agrupated_errors)
-            if (response_agrupated_errors_count == numrows):
-                LogFile("Avro backup restored. invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.  success: False. Error cases: " + str(response_agrupated_errors))
-                return jsonify({'Avro backup restored message':  "invalid parameters were detected in all "+ str(response_agrupated_errors_count) + " cases.",'error cases: ': response_agrupated_errors, 'success': False})
-            else:
-                LogFile("Avro backup restored. "+  str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected. Error cases: : " + str(response_agrupated_errors) + ". success: True File name--> " + str(file))
-                return jsonify({'Avro backup restored message': str(numrows - response_agrupated_errors_count) + " new employees added and "+ str(response_agrupated_errors_count) + " invalid parameters cases were detected.", 'error cases: ': response_agrupated_errors, 'success': True})
-        else:
-            LogFile("Avro backup restored. "+  str(numrows) + " new employees added. success: True. File name--> " + str(file))
-            return jsonify({'Avro backup restored message': str(numrows) + " new employees added.", 'success': True})
-    except Exception as ex:
-        LogFile("Avro backup restored. Error success: False. File name--> " + str(file))
-        return jsonify({'Avro backup restored message': "Error", 'success': False})
+                LogFile("Avro backup restored. "+  str(numrows) + " new employees added. success: True. File name--> " + str(request.json['file']))
+                return jsonify({'Avro backup restored message': str(numrows) + " new employees added.", 'success': True})
+        except Exception as ex:
+            LogFile("Avro backup restored. Error success: False. File name--> " + str(request.json['file']))
+            return jsonify({'Avro backup restored message': "Error", 'success': False})
+    else:
+        LogFile("Avro backup restored . Error Invalid parameters. success: False ->" + str(request.json))
+        return jsonify({'message': "Invalid parameters...", 'success': False}) 
 
 # This call need GET parameter like that "http://localhost:5000/avro_backup_restore/NAMEFILE" 
 @app.route('/import_historic_CSV/<file>', methods=['GET'])
@@ -541,6 +572,7 @@ def hires_by_department_having_more_than_mean(year):
 
 # Function that log one txt file by day
 def LogFile(text):
+    now = datetime.now()
     try:
         f = open("logs/log_" + now.strftime("%m-%d-%Y")+".txt", "a")
         f.write("\n")
