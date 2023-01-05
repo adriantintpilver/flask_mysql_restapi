@@ -116,7 +116,7 @@ example response return:
 ## ADD MANY Service: hired_employees Method: POST
 Service that registers up to 1000 employees at once, posting a JSON with the format of the following example. This service returns a Jason with the error cases and a detail of why each one was rejected.
 ```bash
-A clarification that applies to all registrations for new employees, both the department and the job are always passed in text and the application search for the department or job, if it does not find it in the table it adds it and if it finds it it puts the id that it already had.
+A clarification that applies to all registrations for new employees, both the department and the job are always passed in </br>text and the application search for the department or job, if it does not find it in the table it adds it and if it finds it it</br> puts the id that it already had.
 ```
 Call: <b>http://localhost:5000/hired_employees</b>
 POST call json example:
