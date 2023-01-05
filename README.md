@@ -416,3 +416,10 @@ example response return:
 <img src="/report_samples/hires_by_department_having_more_than_mean-2021.jpeg">
 
 <img src="/report_samples/hires_by_department_having_more_than_mean-2021v2.jpeg">
+
+## ABOUT LOGS
+The LogFile(text) function receives the text to be logged and generates a file per day in the /logs folder with the name of the current date as in the following example:
+```bash
+log_01-05-2023.txt
+```
+in this file a record is kept for each API call with data about the input and output calls.
