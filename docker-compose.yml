@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  app:
+    container_name: FLASK_MYSQL_RESAPI_APP
+    build: .
+    ports:
+      - "5000:5000"
+    links:
+      - db
+
+  db:
+    container_name: FLASK_MYSQL_RESAPI_MYSQL
+    image: mysql:latest
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: StudiodeDataenGlobant
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d/:ro

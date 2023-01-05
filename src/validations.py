@@ -12,22 +12,21 @@ def validate_datetime(datetime: str) -> bool:
     datetime = datetime.strip()
     return (len(datetime) > 0 and len(datetime) == 20)
 
-# Validate that the job_id is numeric and are between 1 and 4.
-def validate_job_id(job_id: str) -> bool:
-    return (str(job_id).isnumeric() and len(str(job_id)) <= 4)
-
 # Validates the job (if it is a text without whitespace between 1 and 100 characters).
 def validate_job(job: str) -> bool:
     job = job.strip()
     return (len(job) > 0 and len(job) <= 100)
 
-# Validate that the department_id is numeric and are between 1 and 4.
-def validate_department_id(department_id: str) -> bool:
-    return (str(department_id).isnumeric() and len(str(department_id)) <= 4)
-
 # Validates the department (if it is a text without whitespace between 1 and 100 characters).
 def validate_department(department: str) -> bool:
     department = department.strip()
     return (len(department) > 0 and len(department) <= 100)
+
+# Validates the file (if it is a text without whitespace between 1 and 100 characters).
+def validate_file(file: str) -> bool:
+    file = file.strip()
+    print("len(file): " + str(len(file)))
+    return (len(file) > 0 and len(file) == 47)
+
 
    
