@@ -13,6 +13,7 @@ import pandas as pd
 import pandavro as pdx
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
+from db_querys import sql_querys 
 
 from config import config
 from validations import *
@@ -39,7 +40,8 @@ conexion = MySQL(app)
 def list_hired_employees():
     try:
         cursor = conexion.connection.cursor()
-        sql = "SELECT id, name, datetime, department_id, job_id FROM hired_employees ORDER BY id ASC"
+        sql = sql_querys['sql_list_hired_employees']
+        print(sql)
         cursor.execute(sql)
         data = cursor.fetchall()
         hired_employees = []
