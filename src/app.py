@@ -59,7 +59,7 @@ def list_hired_employees():
 def list_departments():
     try:
         cursor = conexion.connection.cursor()
-        sql = "SELECT id, department FROM departments ORDER BY id ASC"
+        sql = sql_querys['sql_departments']
         cursor.execute(sql)
         data = cursor.fetchall()
         departments = []
