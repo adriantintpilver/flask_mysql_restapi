@@ -13,7 +13,7 @@ import pandas as pd
 import pandavro as pdx
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
-from db_querys import sql_querys 
+from AccessData import sql_querys 
 
 from config import config
 from validations import *
@@ -105,22 +105,20 @@ def add_hired_employee():
                 if department == None:
                     print("deparment not exist, insert that")
                     cursor = conexion.connection.cursor()
-                    sql = """INSERT INTO departments (department) 
-                    VALUES ('{0}')""".format(request.json['department'])
+                    sql = str(sql_querys['sql_insert_departments']).format(request.json['department'])
+                    cursor.execute(sql)
                     conexion.connection.commit() 
                     department = read_department_db(request.json['department'])
                 #search for the job by name and if it doesn't exist I insert it
                 job = read_jobs_db(request.json['job'])
                 if job == None:
                     cursor = conexion.connection.cursor()
-                    sql = """INSERT INTO jobs (job) 
-                    VALUES ('{0}')""".format(request.json['job'])
+                    sql = str(sql_querys['sql_insert_jobs']).format(request.json['job'])
                     cursor.execute(sql)
                     conexion.connection.commit() 
                     job = read_jobs_db(request.json['job'])
                 cursor = conexion.connection.cursor()
-                sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
-                VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(request.json['id'],
+                sql = str(sql_querys['sql_insert_hired_employees']).format(request.json['id'],
                                                         request.json['name'], request.json['datetime'], department['id'], job['id'])
                 cursor.execute(sql)
                 conexion.connection.commit() 
@@ -156,8 +154,7 @@ def add_hired_employees():
                         department = read_department_db(field_dict['department'])
                         if department == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO departments (department) 
-                            VALUES ('{0}')""".format(field_dict['department'])
+                            sql = str(sql_querys['sql_insert_departments']).format(field_dict['department'])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             department = read_department_db(field_dict['department'])
@@ -165,14 +162,12 @@ def add_hired_employees():
                         job = read_jobs_db(field_dict['job'])
                         if job == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO jobs (job) 
-                            VALUES ('{0}')""".format(field_dict['job'])
+                            sql = str(sql_querys['sql_insert_jobs']).format(field_dict['job'])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             job = read_jobs_db(field_dict['job'])
                         cursor = conexion.connection.cursor()
-                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
-                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(field_dict['id'],
+                        sql = str(sql_querys['sql_insert_hired_employees']).format(field_dict['id'],
                                                                 field_dict['name'], field_dict['datetime'], department['id'], job['id'])
                         cursor.execute(sql)
                         conexion.connection.commit() 
@@ -213,8 +208,7 @@ def udpate_hired_employees():
                 department = read_department_db(request.json['department'])
                 if department == None:
                     cursor = conexion.connection.cursor()
-                    sql = """INSERT INTO departments (department) 
-                    VALUES ('{0}')""".format(request.json['department'])
+                    sql = str(sql_querys['sql_insert_departments']).format(request.json['department'])
                     cursor.execute(sql)
                     conexion.connection.commit() 
                     department = read_department_db(request.json['department'])
@@ -222,14 +216,12 @@ def udpate_hired_employees():
                 job = read_jobs_db(request.json['job'])
                 if job == None:
                     cursor = conexion.connection.cursor()
-                    sql = """INSERT INTO jobs (job) 
-                    VALUES ('{0}')""".format(request.json['job'])
+                    sql = str(sql_querys['sql_insert_jobs']).format(request.json['job'])
                     cursor.execute(sql)
                     conexion.connection.commit() 
                     job = read_jobs_db(request.json['job'])
                 cursor = conexion.connection.cursor()
-                sql = """UPDATE hired_employees SET name = '{0}', datetime = '{1}' , department_id = {2} , job_id = {3} 
-                WHERE id = {4}""".format(request.json['name'], request.json['datetime'], department['id'], job['id'], request.json['id'])
+                sql = str(sql_querys['sql_update_hired_employees']).format(request.json['name'], request.json['datetime'], department['id'], job['id'], request.json['id'])
                 cursor.execute(sql)
                 conexion.connection.commit() 
                 LogFile("hired employee updated successfully. success: True ->" + str(request.json))
@@ -254,7 +246,7 @@ def delete_hired_employees():
             hired_employee = read_hired_employees_db(request.json['id'])
             if hired_employee != None:
                 cursor = conexion.connection.cursor()
-                sql = "DELETE FROM hired_employees WHERE id = {0}".format(request.json['id'])
+                sql = str(sql_querys['sql_delete_hired_employees']).format(request.json['id'])
                 cursor.execute(sql)
                 conexion.connection.commit()  # confirm the deletion.
                 LogFile("deletehired employee. success: True, hired employee deleted ->" + str(request.json))
@@ -274,6 +266,7 @@ def read_hired_employees_db(id):
     try:
         cursor = conexion.connection.cursor()
         sql = "SELECT id, name, datetime, department_id, job_id FROM hired_employees WHERE id = '{0}'".format(id)
+        
         cursor.execute(sql)
         data = cursor.fetchone()
         if data != None:
@@ -300,7 +293,7 @@ def read_hired_employees(id):
 def read_department_db(department):
     try:
         cursor = conexion.connection.cursor()
-        sql = "SELECT id, department FROM departments WHERE department = '{0}'".format(department)
+        sql = str(sql_querys['sql_one_departments']).format(department)
         cursor.execute(sql)
         data = cursor.fetchone()
         if data != None:
@@ -315,7 +308,7 @@ def read_department_db(department):
 def read_jobs_db(job):
     try:
         cursor = conexion.connection.cursor()
-        sql = "SELECT id, job FROM jobs WHERE job = '{0}'".format(job)
+        sql = str(sql_querys['sql_one_jobs']).format(job)
         cursor.execute(sql)
         data = cursor.fetchone()
         if data != None:
@@ -331,7 +324,7 @@ def read_jobs_db(job):
 def avro_backup():
     try:
         cursor = conexion.connection.cursor()
-        sql = "SELECT HE.id, HE.name, HE.datetime, HE.department_id, HE.job_id, D.department, J.job  FROM globantdatastudy.hired_employees as HE inner join globantdatastudy.departments as D on D.id = HE.department_id inner join globantdatastudy.jobs as J on J.id = HE.job_id ORDER BY id ASC"
+        sql = str(sql_querys['sql_backup_list'])
         cursor.execute(sql)
         data = cursor.fetchall()
         hired_employees = []
@@ -417,8 +410,7 @@ def avro_backup_restore():
                         department = read_department_db(row['department'])
                         if department == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO departments (department) 
-                            VALUES ('{0}')""".format(row['department'])
+                            sql = str(sql_querys['sql_insert_departments']).format(row['department'])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             department = read_department_db(row['department'])
@@ -426,14 +418,12 @@ def avro_backup_restore():
                         job = read_jobs_db(row['job'])
                         if job == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO jobs (job) 
-                            VALUES ('{0}')""".format(row['job'])
+                            sql = str(sql_querys['sql_insert_jobs']).format(row['job'])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             job = read_jobs_db(row['job'])
                         cursor = conexion.connection.cursor()
-                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
-                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row['id'],
+                        sql = str(sql_querys['sql_insert_hired_employees']).format(row['id'],
                                                                 row['name'], row['datetime'], department['id'], job['id'])
                         cursor.execute(sql)
                         conexion.connection.commit() 
@@ -493,8 +483,7 @@ def import_historic_CSV(file):
                         department = read_department_db(row[3])
                         if department == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO departments (department) 
-                            VALUES ('{0}')""".format(row[3])
+                            sql = str(sql_querys['sql_insert_departments']).format(row[3])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             department = read_department_db(row[3])
@@ -502,14 +491,12 @@ def import_historic_CSV(file):
                         job = read_jobs_db(row[4])
                         if job == None:
                             cursor = conexion.connection.cursor()
-                            sql = """INSERT INTO jobs (job) 
-                            VALUES ('{0}')""".format(row[4])
+                            sql = str(sql_querys['sql_insert_jobs']).format(row[4])
                             cursor.execute(sql)
                             conexion.connection.commit() 
                             job = read_jobs_db(row[4])
                         cursor = conexion.connection.cursor()
-                        sql = """INSERT INTO hired_employees (id, name, datetime, department_id, job_id) 
-                        VALUES ('{0}', '{1}', '{2}', {3}, {4})""".format(row[0],
+                        sql = str(sql_querys['sql_insert_hired_employees']).format(row[0],
                                                                 row[1], row[2], department['id'], job['id'])
                         cursor.execute(sql)
                         conexion.connection.commit() 
